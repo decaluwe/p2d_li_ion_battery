@@ -1,0 +1,126 @@
+
+#----------------------------------------------------------------------
+#	Graphite Anode for Li-ion battery simulations
+#		S. DeCaluwe, Colorado School of Mines
+#		11-05-2014
+#----------------------------------------------------------------------
+
+units(length = "cm", time = "s", quantity = "mol", act_energy = "J/mol")
+
+incompressible_solid(name = "graphite",
+    elements = " C Li E ",
+    species = """ C6 LiC6 """,
+    density = (2.26, 'g/cm3'),
+    initial_state = state(temperature = 300.0, mole_fractions = 'C6:1.0, LiC6:1e-5'))
+
+"""
+incompressible_solid(name = "electrolyte",
+    elements = " C H O Li E F P ",
+    species = " Li+(e) PF6-(e) EC(e)",
+    density = (1208.2, 'kg/m3'),
+    initial_state 	= state(temperature = 300.0, mole_fractions = 'Li+(e):7.8730103237e-2, PF6-(e):7.8730103237e-2, EC(e):2.8328131770e-1'))
+"""
+incompressible_solid(name = "electrolyte",
+    elements = " Li E ",
+    species = " Li(e) solvent",
+    density = (6.941e-3, 'g/cm3'),
+    initial_state = state(temperature = 300.0, mole_fractions = 'Li(e):1.0'))
+
+
+ideal_interface(name = "anode_surf",
+    elements = " E ",
+    species = "(int)",
+    site_density = 1,
+    reactions = "anodeInt-*",
+    phases = " graphite electrolyte ")
+
+incompressible_solid(name = "cathode",
+    elements = " O Co Li E ",
+    species = """ LiCoO2 CoO2 """,
+    density = (4.9, 'g/cm3'),
+    initial_state = state(temperature = 300.0, mole_fractions = 'LiCoO2:1.0, CoO2:1e-5'))
+
+ideal_interface(name = "cathode_surf",
+    elements = " E ",
+    species = "(int)",
+    site_density = 1.0,
+    reactions = "cathodeInt-*",
+    phases = " cathode electrolyte ")
+
+
+
+
+
+
+ 
+#-----------------------------------------------------------------------------
+#  Species data
+#
+#-----------------------------------------------------------------------------
+
+species(name = "electron",   
+	atoms = "E:1",
+        thermo = const_cp(h0 = (0.0, 'kcal/mol')))
+
+species( name = "solvent",   atoms = " ",
+        thermo = const_cp(h0 = (0.0, 'kcal/mol')))
+
+species( name = "C6",
+    atoms = " C:6 ",
+    thermo = const_cp(h0 = (0.0, 'kcal/mol')))
+
+species( name = "Li(e)",
+    atoms = " Li:1 E:-1 ",
+    thermo = const_cp(h0 = (0.0, 'kcal/mol')))
+
+species( name = "LiC6",
+    atoms = " C:6 Li:1 E:-1",
+    thermo = const_cp(h0 = (-11.65, 'kJ/mol'), s0 = (0, 'kJ/mol')))
+
+
+species( name = "LiCoO2",
+    atoms = " Co:1 O:2 Li:1 E:-1",
+    thermo = const_cp(h0 = (-350.65, 'kJ/mol'), s0 = (0, 'kJ/mol')))
+
+
+species( name = "CoO2",
+    atoms = " Co:1 O:2 ",
+    thermo = const_cp(h0 = (0.0, 'kcal/mol')))
+
+species(name 		= "EC(e)",
+	atoms 		= "C:3, H:4, O:3",
+	thermo 		= const_cp(h0 = (0.0, 'kJ/mol'), s0 = (0.0, 'J/mol/K')))
+	
+species(	
+	name 		= "EMC(e)",
+	atoms 		= "C:4, H:8, O:3",
+	thermo 		= const_cp(h0 = (0.0, 'kJ/mol'), s0 = (0.0, 'J/mol/K')))
+
+species(	
+	name 		= "Li+(e)",
+	atoms 		= "Li:1, E:-1",
+	thermo 		= const_cp(h0 = (0.0,'kJ/mol'), s0 = (0.0, 'J/mol/K')))
+
+species(	
+	name 		= "PF6-(e)",
+	atoms 		= "P:1, F:6, E:1",
+	thermo 		= const_cp(h0 = (0.0, 'kJ/mol'), s0 = (0.0, 'J/mol/K')))
+
+
+species(	
+	name 		= "Li",
+	atoms 		= "Li:1",
+	thermo 		= const_cp(cp0 = (0.0, 'J/mol/K'), h0 = (0.0, 'kJ/mol'), s0 = (0.0, 'J/mol/K')))
+
+
+
+# dummy species for anode/electrolyte interface
+species( name = "(int)",
+	 atoms = "")
+
+
+#-------------------------------------------------------------------------------
+#  Reaction data 
+#-------------------------------------------------------------------------------
+surface_reaction("LiC6 <=> Li(e) + C6", [1.74e-5, 0.0, 0.0], id="anodeInt-1")
+surface_reaction("LiCoO2 <=> Li(e) + CoO2", [1.74e-50, 0.0, 0.0], id="cathodeInt-1")
