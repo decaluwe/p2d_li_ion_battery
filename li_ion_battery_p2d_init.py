@@ -87,18 +87,6 @@ class anode():
         SV_0[offsets[j] + ptr['Phi_dl']] = Inputs.Phi_elyte_init - Inputs.Phi_anode_init
         # Electrolyte electric potential = 0, so V_dl_init = V_an_init
 
-    # Create dictionary to hold geometrical parameters
-    geom = {}
-    geom['eps_ed'] = Inputs.eps_solid_an
-    geom['eps_elyte'] = 1 - Inputs.eps_solid_an
-    geom['tau_ed'] = Inputs.tau_an
-    geom['r_pore'] = Inputs.r_p_an
-    geom['d_part'] = Inputs.d_part_an
-    geom['A_surf'] = A_surf
-    geom['dyInv'] = npoints/Inputs.H_an
-    geom['dr'] = geom['d_part']*0.5/nshells
-    #    dr = geom['d_part']*0.5/nshells
-
     # Calculate the current density [A/m^2] corresponding to a C_rate of 1:
     oneC = geom['eps_ed']*anode_obj.density_mole*Inputs.H_an*ct.faraday/3600
 
@@ -107,17 +95,22 @@ class anode():
     #   delivers negative charge to the anode:
     i_ext = -Inputs.C_rate*oneC
 
-    # Create dict to hold 'other' parameters
-    params = {}
-    params['npoints'] = npoints
-    params['nshells'] = nshells
-    params['nVars'] = nVars
-    params['T'] = Inputs.T
-    params['C_dl'] = Inputs.C_dl_an
-    params['X_Li_max'] = Inputs.SOC_max
-    params['X_Li_min'] = Inputs.SOC_min
-    params['D_Li_ed'] = Inputs.D_Li_an
-    params['i_ext'] = i_ext
+    # Store parameters as class object attributes:
+    T = Inputs.T
+    C_dl = Inputs.C_dl_an
+    X_Li_max = Inputs.SOC_max
+    X_Li_min = Inputs.SOC_min
+    D_Li_ed = Inputs.D_Li_an
+
+    # Geometric parameters:
+    eps_ed = Inputs.eps_solid_an
+    eps_elyte = 1 - Inputs.eps_solid_an
+    tau_ed = Inputs.tau_an
+    r_pore = Inputs.r_p_an
+    d_part = Inputs.d_part_an
+    dyInv = npoints/Inputs.H_an
+    dr = geom['d_part']*0.5/nshells
+
     # Calculate the percent volume of a single graphite particle that exists in
     #   each 'shell'. I.e. for shell j, what is the volume of that shell,
     #   relative to the total particle volume? The radius of the volume is
@@ -179,10 +172,10 @@ class separator():
 
     tau_sep = Inputs.tau_sep  # Tortuosity of separator
 
-    geom = {}
-    geom['eps_elyte'] = Inputs.eps_elyte_sep
-    geom['dyInv'] = npoints/H
-    geom['tau_sep'] = tau_sep
+    # Geometric parameters:
+    eps_elyte = Inputs.eps_elyte_sep
+    dyInv = npoints/H
+    tau_sep = tau_sep
 
     ptr = {}
     ptr['rho_k_elyte'] = np.arange(0,elyte_obj.n_species)
@@ -269,16 +262,6 @@ class cathode():
                             - (Inputs.Phi_anode_init + Inputs.Delta_Phi_init)
         # Electrolyte electric potential = 0, so V_dl_init = V_an_init
 
-    # Create dict to hold geometrical parameters:
-    geom = {}
-    geom['eps_ed'] = Inputs.eps_solid_ca
-    geom['eps_elyte'] = 1 - Inputs.eps_solid_ca
-    geom['tau_ed'] = Inputs.tau_ca
-    geom['r_p'] = Inputs.r_p_ca
-    geom['d_part'] = Inputs.d_part_ca
-    geom['A_surf'] = A_surf
-    geom['dyInv'] = npoints/Inputs.H_ca
-    geom['dr'] = geom['d_part']*0.5/nshells
 
     # Calculate the current density [A/m^2] corresponding to a C_rate of 1:
     oneC = geom['eps_ed']*cathode_obj.density_mole*Inputs.H_ca*ct.faraday/3600
@@ -288,17 +271,21 @@ class cathode():
     #   delivers negative charge to the anode:
     i_ext = -Inputs.C_rate*oneC
 
-    # Create dict to hold 'other' parameters
-    params = {}
-    params['npoints'] = npoints
-    params['nshells'] = nshells
-    params['nVars'] = nVars
-    params['T'] = Inputs.T
-    params['C_dl'] = Inputs.C_dl_ca
-    params['X_Li_max'] = Inputs.SOC_max
-    params['X_Li_min'] = Inputs.SOC_min
-    params['D_Li_ed'] = Inputs.D_Li_ca
-    params['i_ext'] = i_ext
+    #  Store Parameters in the Class object:
+    T = Inputs.T
+    C_dl = Inputs.C_dl_ca
+    X_Li_max = Inputs.SOC_max
+    X_Li_min = Inputs.SOC_min
+    D_Li_ed = Inputs.D_Li_ca
+
+    # Geometric parameters:
+    eps_ed = Inputs.eps_solid_ca
+    eps_elyte = 1 - Inputs.eps_solid_ca
+    tau_ed = Inputs.tau_ca
+    r_p = Inputs.r_p_ca
+    d_part = Inputs.d_part_ca
+    dyInv = npoints/Inputs.H_ca
+    dr = geom['d_part']*0.5/nshells
 
     # Calculate the percent volume of a single graphite particle that exists in
     #   each 'shell'. I.e. for shell j, what is the volume of that shell,
