@@ -9,6 +9,20 @@ import numpy as np
 import cantera as ct
 from assimulo.problem import Implicit_Problem
 
+from li_ion_battery_p2d_init import anode as an
+from li_ion_battery_p2d_init import cathode as cat
+from li_ion_battery_p2d_init import separator as sep
+from li_ion_battery_p2d_init import Inputs
+from li_ion_battery_p2d_init import anode_obj as anode
+from li_ion_battery_p2d_init import anode_surf_obj as anode_s
+from li_ion_battery_p2d_init import elyte_obj as elyte
+from li_ion_battery_p2d_init import cathode_surf_obj as cathode_s
+from li_ion_battery_p2d_init import cathode_obj as cathode
+from li_ion_battery_p2d_init import conductor_obj as conductor
+
+
+
+
 class Extended_Problem(Implicit_Problem):
     sw0 = True
     def Battery_Func(t, SV, SV_dot, sw):
@@ -21,20 +35,20 @@ class Extended_Problem(Implicit_Problem):
         nSV = len(SV)
         res = np.zeros([nSV])
 
-        offset_vec = sep.offset_vec
+        offset_vec = sep.offsets
 
-        anode = an.obj['electrode']
+        """        anode = an.obj['electrode']
         anode_s = an.obj['surf']
         elyte = an.obj['elyte']
         cathode = cat.obj['electrode']
-        cathode_s = cat.obj['surf']
+        cathode_s = cat.obj['surf']"""
 
         nsp_an = anode.n_species; nsp_cat = cathode.n_species
 
-        F = Inputs.F; R = ct.gas_constant; T = Inputs.T
-        sigma_eff_an = an.params['sigma_eff_ed']; dyInv = an.geom['dyInv']
-        u_Li_elyte = an.params['u_Li_elyte']; D_Li_an = an.params['D_Li_ed']
-        dr = an.dr
+        F = ct.faraday; R = ct.gas_constant; T = Inputs.T
+        #sigma_eff_an = an.params['sigma_eff_ed']; dyInv = an.geom['dyInv']
+        #u_Li_elyte = an.params['u_Li_elyte']; D_Li_an = an.params['D_Li_ed']
+        #dr = an.dr
 # %%
         """================================================================="""
         """============================ANODE================================"""
@@ -44,22 +58,26 @@ class Extended_Problem(Implicit_Problem):
         #  --------------------------------
 
         # Looking at node 1, j=0, set THIS node conditions
-        j = 0; offset = int(offset_vec[j])
+        offset = an.offsets
+        ptr = an.ptr
+        j = 0
 
         N_io_m = 0
         i_io_m = 0
-        i_el_m = an.params['i_ext']
+        i_el_m = an.i_ext
 
-        X_an_1 = SV[offset + an.ptr['X_ed'][-1]]
-        X_elyte_1 = SV[offset + an.ptr['X_elyte']]
+        X_an_1 = SV[offset[j] + ptr['X_ed'][-1]]
+        rho_k_elyte_1 = SV[offset[j] + ptr['rho_k_elyte']]
 
-        phi_elec_an_1 = SV[offset + an.ptr['V_ed']]
-        phi_elec_elyte_1 = phi_elec_an_1 - SV[offset + an.ptr['V_dl']]
+        phi_elec_an_1 = SV[offset[j] + ptr['Phi_ed']]
+        phi_elec_elyte_1 = phi_elec_an_1 - SV[offset[j] + ptr['Phi_dl']]
 
         anode.X = [X_an_1, 1-X_an_1]
         anode.electric_potential = phi_elec_an_1
+        conductor.electric_potential = phi_elec_an_1
 
-        elyte.X = [X_elyte_1, 1-X_elyte_1]
+        #elyte.TDY = Inputs.T, np.sum(rho_k_elyte_1), rho_k_elyte_1
+        elyte.Y = rho_k_elyte_1/np.sum(rho_k_elyte_1)
         elyte.electric_potential = phi_elec_elyte_1
 
         sdot_1 = anode_s.net_production_rates
@@ -68,15 +86,17 @@ class Extended_Problem(Implicit_Problem):
         j = 1; offset = int(offset_vec[j])
 
         X_an_2 = SV[offset + an.ptr['X_ed'][-1]]
-        X_elyte_2 = SV[offset + an.ptr['X_elyte']]
+        rho_k_elyte_2 = SV[offset + an.ptr['rho_k_elyte']]
 
-        phi_elec_an_2 = SV[offset + an.ptr['V_ed']]
-        phi_elec_elyte_2 = phi_elec_an_2 - SV[offset + an.ptr['V_dl']]
+        phi_elec_an_2 = SV[offset + an.ptr['Phi_ed']]
+        phi_elec_elyte_2 = phi_elec_an_2 - SV[offset + an.ptr['Phi_dl']]
 
         anode.X = [X_an_2, 1-X_an_2]
+        conductor.electric_potential = phi_elec_an_2
         anode.electric_potential = phi_elec_an_2
 
-        elyte.X = [X_elyte_2, 1-X_elyte_1]
+        #elyte.TDY = Inputs.T, np.sum(rho_k_elyte_2), rho_k_elyte_2
+        elyte.Y = rho_k_elyte_2/np.sum(rho_k_elyte_2)
         elyte.electric_potential = phi_elec_elyte_2
 
         sdot_2 = anode_s.net_production_rates
@@ -84,18 +104,18 @@ class Extended_Problem(Implicit_Problem):
         # Shift back to node 1, j=0, set THIS node outlet conditions
         j = 0; offset = int(offset_vec[j])
 
-        i_el_p = sigma_eff_an*(phi_elec_an_1-phi_elec_an_2)*dyInv
+        i_el_p = an.sigma_eff_ed*(phi_elec_an_1-phi_elec_an_2)*an.dyInv
 
-        N_io_p = (-u_Li_elyte*elyte.density_mole*(R*T*(X_elyte_2 - X_elyte_1)
-        + F*(phi_elec_elyte_2 - phi_elec_elyte_1))*dyInv)
+        N_io_p = (-an.u_Li_elyte*elyte.density_mole*(R*T*(rho_k_elyte_2 - rho_k_elyte_1)
+        + F*(phi_elec_elyte_2 - phi_elec_elyte_1))*an.dyInv)
 
-        i_io_p = N_io_p*F
+        i_io_p = np.dot(N_io_p,Inputs.z_k_elyte)*F
 
-        i_Far_1 = sdot_1[an.ptr['iFar']]*F*an.geom['A_surf']/dyInv
+        i_Far_1 = sdot_1[an.ptr['iFar']]*F*an.A_surf/an.dyInv
 
         X_Li = 1 - SV[offset + an.ptr['X_ed']]
         DiffFlux = np.zeros([an.nshells+1])
-        DiffFlux[1:-1] = D_Li_an*(X_Li[0:-1] - X_Li[1:])/dr
+        DiffFlux[1:-1] = an.D_Li_ed*(X_Li[0:-1] - X_Li[1:])/an.dr
         DiffFlux[-1] = sdot_1[0]/anode.density_mole
 
         k_m = np.arange(0, an.nshells)/an.nshells
@@ -111,19 +131,19 @@ class Extended_Problem(Implicit_Problem):
             relative to the total particle surface area"""
         res[offset + an.ptr['X_ed']] = (SV_dot[offset + an.ptr['X_ed']]
         - ((DiffFlux[1:]*k_p**2 - DiffFlux[0:-1]*k_m**2)
-        * an.geom['A_surf']/an.geom['phi_ed']/an.params['V_shell']))
+        * an.A_surf/an.eps_ed/an.V_shell))
 
         """Change in electrolyte_composition"""
-        res[offset + an.ptr['X_elyte']] = (SV_dot[offset + an.ptr['X_elyte']]
-        - (((N_io_m - N_io_p)*dyInv + sdot_1[nsp_an]*an.geom['A_surf'])
-        /elyte.density_mole/an.geom['phi_elyte']))
+        res[offset + an.ptr['rho_k_elyte']] = (SV_dot[offset + an.ptr['rho_k_elyte']]
+        - (((N_io_m - N_io_p)*an.dyInv + sdot_1[nsp_an]*an.A_surf)
+        /elyte.density_mole/an.eps_elyte))
 
         """Double-layer voltage"""
-        res[offset + an.ptr['V_dl']] = (SV_dot[offset + an.ptr['V_dl']]
-        - (i_Far_1 + i_el_m - i_el_p)*dyInv/an.params['C_dl']/an.geom['A_surf'])
+        res[offset + an.ptr['Phi_dl']] = (SV_dot[offset + an.ptr['Phi_dl']]
+        - (i_Far_1 + i_el_m - i_el_p)*an.dyInv/an.C_dl/an.A_surf)
 
         """Algebraic equation for ANODE electric potential boundary condition"""
-        res[offset + an.ptr['V_ed']] = SV[offset + an.ptr['V_ed']]
+        res[offset + an.ptr['Phi_ed']] = SV[offset + an.ptr['Phi_ed']]
 #        (i_el_m - i_el_p + i_io_m - i_io_p)
 #        SV_dot[offset + an.ptr['V_ed']]
 # %%
@@ -136,61 +156,62 @@ class Extended_Problem(Implicit_Problem):
             i_io_m = i_io_p
             i_el_m = i_el_p
             X_an_1 = X_an_2
-            X_elyte_1 = X_elyte_2
+            rho_k_elyte_1 = rho_k_elyte_2
             phi_elec_an_1 = phi_elec_an_2
             phi_elec_elyte_1 = phi_elec_elyte_2
             sdot_1 = sdot_2
 
             # Shift forward to NEXT node
-            offset = int(offset_vec[j])
+            offset = int(an.offsets[j])
 
             X_an_2 = SV[offset + an.ptr['X_ed'][-1]]
-            X_elyte_2 = SV[offset + an.ptr['X_elyte']]
+            rho_k_elyte_2 = SV[offset + an.ptr['rho_k_elyte']]
 
-            phi_elec_an_2 = SV[offset + an.ptr['V_ed']]
-            phi_elec_elyte_2 = phi_elec_an_2 - SV[offset + an.ptr['V_dl']]
+            phi_elec_an_2 = SV[offset + an.ptr['Phi_ed']]
+            phi_elec_elyte_2 = phi_elec_an_2 - SV[offset + an.ptr['Phi_dl']]
 
             anode.X = [X_an_2, 1-X_an_2]
             anode.electric_potential = phi_elec_an_2
+            conductor.electric_potential = phi_elec_an_2
 
-            elyte.X = [X_elyte_2, 1-X_elyte_2]
+            elyte.Y = rho_k_elyte_2/np.sum(rho_k_elyte_2)
             elyte.electric_potential = phi_elec_elyte_2
 
             sdot_2 = anode_s.net_production_rates
 
             # Shift back to THIS node, set THIS node outlet conditions
-            offset = int(offset_vec[j - 1])
+            offset = int(an.offsets[j - 1])
 
-            i_el_p = sigma_eff_an*(phi_elec_an_1-phi_elec_an_2)*dyInv
+            i_el_p = an.sigma_eff_ed*(phi_elec_an_1-phi_elec_an_2)*an.dyInv
 
-            N_io_p = (-u_Li_elyte*elyte.density_mole*(R*T*(X_elyte_2 - X_elyte_1)
-            + F*(phi_elec_elyte_2 - phi_elec_elyte_1))*dyInv)
+            N_io_p = (-an.u_Li_elyte*elyte.density_mole*(R*T*(rho_k_elyte_2 - rho_k_elyte_1)
+            + F*(phi_elec_elyte_2 - phi_elec_elyte_1))*an.dyInv)
 
-            i_io_p = N_io_p*F
+            i_io_p = np.dot(N_io_p,Inputs.z_k_elyte)*F
 
-            i_Far_1 = sdot_1[an.ptr['iFar']]*F*an.geom['A_surf']/dyInv
+            i_Far_1 = sdot_1[an.ptr['iFar']]*F*an.A_surf/an.dyInv
 
             X_Li = 1 - SV[offset + an.ptr['X_ed']]
             DiffFlux = np.zeros([an.nshells+1])
-            DiffFlux[1:-1] = D_Li_an*(X_Li[0:-1] - X_Li[1:])/dr
+            DiffFlux[1:-1] = an.D_Li_ed*(X_Li[0:-1] - X_Li[1:])/an.dr
             DiffFlux[-1] = sdot_1[0]/anode.density_mole
 
             """Calculate the change in X_C6 in the particle interior."""
             res[offset + an.ptr['X_ed']] = (SV_dot[offset + an.ptr['X_ed']]
             - ((DiffFlux[1:]*k_p**2 - DiffFlux[0:-1]*k_m**2)
-            * an.geom['A_surf']/an.geom['phi_ed']/an.params['V_shell']))
+            * an.A_surf/an.eps_ed/an.V_shell))
 
             """Change in electrolyte_composition"""
-            res[offset + an.ptr['X_elyte']] = (SV_dot[offset + an.ptr['X_elyte']]
-            - (((N_io_m - N_io_p)*dyInv + sdot_1[nsp_an]*an.geom['A_surf'])
-            /elyte.density_mole/an.geom['phi_elyte']))
+            res[offset + an.ptr['rho_k_elyte']] = (SV_dot[offset + an.ptr['rho_k_elyte']]
+            - (((N_io_m - N_io_p)*an.dyInv + sdot_1[nsp_an]*an.A_surf)
+            /elyte.density_mole/an.eps_elyte))
 
             """Double-layer voltage"""
-            res[offset + an.ptr['V_dl']] = (SV_dot[offset + an.ptr['V_dl']]
-            - (i_Far_1 + i_el_m - i_el_p)*dyInv/an.params['C_dl']/an.geom['A_surf'])
+            res[offset + an.ptr['Phi_dl']] = (SV_dot[offset + an.ptr['Phi_dl']]
+            - (i_Far_1 + i_el_m - i_el_p)*an.dyInv/an.C_dl/an.A_surf)
 
             """Algebraic equation for ANODE electric potential boundary condition"""
-            res[offset + an.ptr['V_ed']] = (i_el_m - i_el_p + i_io_m - i_io_p)
+            res[offset + an.ptr['Phi_ed']] = (i_el_m - i_el_p + i_io_m - i_io_p)
 # %%
         """============================ANODE================================"""
         """Separator boundary"""
@@ -199,7 +220,7 @@ class Extended_Problem(Implicit_Problem):
         i_io_m = i_io_p
         i_el_m = i_el_p
         X_an_1 = X_an_2
-        X_elyte_1 = X_elyte_2
+        rho_k_elyte_1 = rho_k_elyte_2
         phi_elec_an_1 = phi_elec_an_2
         phi_elec_elyte_1 = phi_elec_elyte_2
         sdot_1 = sdot_2
@@ -220,34 +241,36 @@ class Extended_Problem(Implicit_Problem):
 #        i_io_p = N_io_p*F
 
         # Set j to final ANODE node
-        j = an.npoints-1; offset = int(offset_vec[j])
+        j = an.npoints-1; offset = int(an.offsets[j])
 
-        i_Far_1 = sdot_1[an.ptr['iFar']]*F*an.geom['A_surf']/an.geom['dyInv']
+        i_Far_1 = sdot_1[an.ptr['iFar']]*F*an.A_surf/an.dyInv
 
-        i_io_p = an.params['i_ext']
-        N_io_p = i_io_p/F
+        i_io_p = an.i_ext
+        #THIS IS TEMPORARY, NON-GENERALIZED CODE:
+        N_io_p = np.zeros_like(N_io_p)
+        N_io_p[2] = i_io_p/F
 
         X_Li = 1 - SV[offset + an.ptr['X_ed']]
         DiffFlux = np.zeros([an.nshells+1])
-        DiffFlux[1:-1] = D_Li_an*(X_Li[0:-1] - X_Li[1:])/dr
+        DiffFlux[1:-1] = an.D_Li_ed*(X_Li[0:-1] - X_Li[1:])/an.dr
         DiffFlux[-1] = sdot_1[0]/anode.density_mole
 
         """Calculate the change in X_C6 in the particle interior."""
         res[offset + an.ptr['X_ed']] = (SV_dot[offset + an.ptr['X_ed']]
         - ((DiffFlux[1:]*k_p**2 - DiffFlux[0:-1]*k_m**2)
-        * an.geom['A_surf']/an.geom['phi_ed']/an.params['V_shell']))
+        * an.A_surf/an.eps_ed/an.V_shell))
 
         """Change in electrolyte_composition"""
-        res[offset + an.ptr['X_elyte']] = (SV_dot[offset + an.ptr['X_elyte']]
-        - (((N_io_m - N_io_p)*dyInv + sdot_1[nsp_an]*an.geom['A_surf'])
-        /elyte.density_mole/an.geom['phi_elyte']))
+        res[offset + an.ptr['rho_k_elyte']] = (SV_dot[offset + an.ptr['rho_k_elyte']]
+        - (((N_io_m - N_io_p)*an.dyInv + sdot_1[nsp_an]*an.A_surf)
+        /elyte.density_mole/an.eps_elyte))
 
         """Double-layer voltage"""
-        res[offset + an.ptr['V_dl']] = (SV_dot[offset + an.ptr['V_dl']]
-        - (i_Far_1 + i_el_m - i_el_p)*dyInv/an.params['C_dl']/an.geom['A_surf'])
+        res[offset + an.ptr['Phi_dl']] = (SV_dot[offset + an.ptr['Phi_dl']]
+        - (i_Far_1 + i_el_m - i_el_p)*an.dyInv/an.C_dl/an.A_surf)
 
         """Algebraic equation for ANODE electric potential boundary condition"""
-        res[offset + an.ptr['V_ed']] = (i_el_m - i_el_p + i_io_m - i_io_p)
+        res[offset + an.ptr['Phi_ed']] = (i_el_m - i_el_p + i_io_m - i_io_p)
 # %%
         """================================================================="""
         """==========================SEPARATOR=============================="""

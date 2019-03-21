@@ -24,13 +24,26 @@ from li_ion_battery_p2d_functions import Extended_Problem
 
 from assimulo.solvers import IDA
 
-from li_ion_battery_p2d_init import Inputs as inp
-from li_ion_battery_p2d_init import anode, cathode, separator
 
+from li_ion_battery_p2d_inputs import Inputs as inp
+from li_ion_battery_p2d_init import anode, cathode, separator, SV_0, algvar
 from li_ion_battery_p2d_post_process import Label_Columns, tag_strings, plot_sims
 
 
 def main():
+
+    import numpy as np
+    import time
+    from matplotlib import pyplot as plt
+
+    from li_ion_battery_p2d_functions import Extended_Problem
+
+    from assimulo.solvers import IDA
+
+
+    from li_ion_battery_p2d_inputs import Inputs as inp
+    from li_ion_battery_p2d_init import anode, cathode, separator, SV_0, algvar
+    from li_ion_battery_p2d_post_process import Label_Columns, tag_strings, plot_sims
 
     # Close any open pyplot objects:
     plt.close()
@@ -45,8 +58,8 @@ def main():
 
 #    SV_0 = anode.SV_0
 #    SV_0 = np.concatenate((anode.SV_0, separator.SV_0, cathode.SV_0))
-    SV_0 = np.concatenate((anode.SV_0, separator.SV_0))
-    SV_dot_0 = SV_0*0
+    #SV_0 = np.concatenate((anode.SV_0, separator.SV_0))
+    SV_dot_0 = np.zeros_like(SV_0)
 
     """----------Equilibration----------"""
 
@@ -54,11 +67,15 @@ def main():
     print('\nEquilibrating...')
 
     # Create problem instance
-    Battery_equil = Extended_Problem(Equilibrate, SV_0, SV_dot_0, t_0)
+    #Battery_equil = Extended_Problem(Battery_Func, SV_0, SV_dot_0, t_0)
+
+    anode.i_ext = 0
+    cathode.i_ext = 0
+    Battery_equil = Extended_Problem.Battery_Func(t_0, SV_0, SV_dot_0, True)
     Battery_equil.external_event_detection = True
 #    algvar = anode.algvar
 #    algvar = np.concatenate((anode.algvar, separator.algvar, cathode.algvar))
-    algvar = np.concatenate((anode.algvar, separator.algvar))
+    #algvar = np.concatenate((anode.algvar, separator.algvar))
 #    Battery_equil.algvar = algvar
 
     # Simulation parameters

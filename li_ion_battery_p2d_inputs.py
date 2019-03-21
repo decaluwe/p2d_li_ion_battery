@@ -79,6 +79,7 @@ class Inputs():
     H_elyte = 100e-6
     # Elyte species bulk diffusion coefficients [m^2/s]
     D_Li_elyte = np.array([1e-12, 1e-12, 1e-10, 3e-11])
+    z_k_elyte = np.array([0., 0., 1., -1.])
 
     eps_elyte_sep = 0.85      # Separator electrolyte volume fraction
     tau_sep = 1.6  # Tortuosity of separator
